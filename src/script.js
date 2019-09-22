@@ -185,7 +185,7 @@ class enemy{
 		if(!this.alive){ return; }
 		if(this.count > 0){
 			this.count--;
-			this.vy += 0.1; // /2の場合は30フレームかけて3を0にするので0.1x0.5x30x31で45くらい動く。/3の場合は0.1x0.5x40x41で80くらい。+1で20くらい。
+			this.vy += 0.1; // 移動距離はnフレームで0.05 * n * nくらい。30, 40, 50ならおよそ45, 80, 125になる。
 		}
 		let newX = this.x + this.vx;
 		let newY = this.y + this.vy;
@@ -222,20 +222,19 @@ class enemy{
 			hitFlag = 3; this.num++;
 		}
 		// 1になったら爆砕。
-		if(this.num === 1){ this.alive = false; return hitFlag; } // masterがこれを検知して、配列から外し、エフェクトを発生させる流れ。
+    // masterがこれを検知して、配列から外し、エフェクトを発生させる流れ。
+		if(this.num === 1){ this.alive = false; return hitFlag; }
 		this.factorIndex = enemy.calcFactorIndex(this.num);
 		this.diam = diamArray[this.factorIndex];
 		this.speed = speedFactor[this.factorIndex];
 		this.vx = (this.vx > 0 ? this.speed * DOWN_COS : -this.speed * DOWN_COS);
 		this.vy = this.speed * DOWN_SIN;
-		//this.color = enemy.getBodyColor(this.factorIndex); // 色は不変とする。
-		// +1でも動かそうね。20, 30, 40の2, 3, 4でいいよ。0.1ずつ減らす。
-		// つまんないから20, 40, 60に戻す。難しいステージが作れなくて面白くない。
+    // 30, 40, 50にしてみる。
 		if(hitFlag > 0 && hitFlag < 4){
 			if(shotTypeId < 2){
-				let boundFactor = shotTypeId * 2 + 4;
-			  this.count = boundFactor * 10; // 40ないし60.
-			  this.vy -= boundFactor; // 4ないし6.
+				let boundFactor = shotTypeId + 4;
+			  this.count = boundFactor * 10; // 40ないし50.
+			  this.vy -= boundFactor; // 4ないし5.
 			}else{
 				// +1ショットの場合
 				this.count = 30;
@@ -274,21 +273,32 @@ class enemy{
 }
 
 // enemyを倒したときのなんか。
+// (x, y)を中心として8方向に円を飛ばしたい。円の直径はdiamの1/4くらい。
 class effect{
 	constructor(x, y, diam, col){
 		this.x = x;
 		this.y = y;
 		this.color = col;
 		this.diam = diam;
-		this.life = 30; // 1秒アニメ。とりあえず円が消える感じでいいよ。
+		this.life = 30; // 0.5秒アニメ。とりあえず円が消える感じでいいよ。
+    this.angleArrayX = [];
+    this.angleArrayY = [];
+    for(let i = 0; i < 8; i++){
+      this.angleArrayX.push(Math.cos(Math.PI * i / 4));
+      this.angleArrayY.push(Math.sin(Math.PI * i / 4));
+    }
 	}
   update(){
 		this.life--; // lifeが0のeffectはcheckで排除する。
 	}
 	render(){
 		fill(this.color);
-		let d = this.diam * this.life / 60;
-		ellipse(this.x, this.y, d, d);
+		//let d = this.diam * this.life / 60;
+		//ellipse(this.x, this.y, d, d);
+    let r = this.diam * (0.5 - this.life / 60);
+    for(let i = 0; i < 8; i++){
+      ellipse(this.x + this.angleArrayX[i] * r, this.y + this.angleArrayY[i] * r, this.diam / 4, this.diam / 4);
+    }
 	}
 }
 
@@ -304,19 +314,15 @@ class master{
 		this.scoreLevel = 0; // 桁数。スコアが変わるたびに変更される。
 		this.hitChain = 0;  // 連鎖ボーナス用
 		this.missChain = 0; // 連鎖ペナルティ用
-		// プログラム関連
-		this.currentProgram = undefined;
-		this.setProgram();
+    // ジェネレータ関連
+    this.generatorArray = [];
+    this.setGenerator();
 	}
-	setProgram(){
+	setGenerator(){
 		// どの範囲の数がどれくらいの確率で出るかみたいなこと
 		if(this.stageNumber === 0){
-			this.enemyArray.push(new enemy(33, 100));
-			this.enemyArray.push(new enemy(6, 150));
-		  this.enemyArray.push(new enemy(31, 200));
-			this.enemyArray.push(new enemy(6, 250));
-			this.enemyArray.push(new enemy(33, 300));
-			//this.currentProgram = simpleProgram([10, 99], [180, 220], 240); // 4秒おきに中央付近に2桁の敵を1匹ずつ
+      this.registGenerator({id:0, param:[3, 60, [2, 9], [180, 220]]});
+      this.registGenerator({id:1, param:[1, 1, [30, 60, 30], [100, 200, 300]]});
 		}
 	}
 	collisionCheck(){
@@ -348,15 +354,17 @@ class master{
 	reset(){
 		this.enemyArray = [];
 		this.shotArray = [];
+    this.generatorArray = [];
 		this.myCannon.reset();
 		this.score = 0; // スコアリセット
 		this.scoreLevel = 0; // スコアレベルリセット
 		// chainのリセット忘れずに
 		this.hitChain = 0;
 		this.missChain = 0;
-		this.setProgram();
+		this.setGenerator();
 	}
 	update(){
+    this.generatorArray.forEach((g) => { g.update(); })
 		this.enemyArray.forEach((e) => { e.update(); })
 		this.shotArray.forEach((s) => { s.update(); });
 		this.effectArray.forEach((ef) => { ef.update(); });
@@ -443,6 +451,7 @@ class master{
 			if(this.enemyArray[i].arrived){ this.reset(); break; } // 陣地に到達されたらGAMEOVER.
 			if(this.enemyArray[i].num >= 10000000){ this.reset(); break; } // 数字が8桁を超えたらGAMEOVER.
 		}
+    this.generateEnemy();
 	}
 	calcChain(flag){
     switch(flag){
@@ -481,38 +490,125 @@ class master{
 		}
 		return;
 	}
+  registGenerator(command){
+    // commandひとつひとつはidとparam配列からなる。
+    // id:0はsimpleMonoGeneratorでrepeat, interval, num, posの配列
+    // id:1はsimpleMultiGeneratorでrepeat, interval, numArray, posArrayの配列
+    // とりあえずこんなもん？
+    let p = command.param;
+    switch(command.id){
+      case 0:
+        this.generatorArray.push(new simpleMonoGenerator(p[0], p[1], p[2], p[3]));
+        return;
+      case 1:
+        this.generatorArray.push(new simpleMultiGenerator(p[0], p[1], p[2], p[3]));
+        return;
+    }
+  }
+  generateEnemy(){
+    this.generatorArray.forEach((g) => {
+      if(g.fire){
+        let enemyDataArray = g.generate();
+        enemyDataArray.forEach((data) => {
+          this.enemyArray.push(new enemy(data.n, data.x));
+        })
+        g.fireOff(); // これがないとえらいことになる
+      }
+    })
+  }
 }
 
+// generator.いくつか持つことが基本。
 // これをmasterがいくつか持ってて、updateさせて準備が出来たらgenerateさせて別メソッドでenemyArrayに補充する感じ。
 // signalをtrueにすれば・・で、いくつかenemy,ひとつとは限らない、複数かも知れないそれらをこっちで用意してenemy配列を出力。
 // masterがそれを受け取ってenemyArrayに追加する流れ。
 // 要は、何フレーム後にいくつを数指定で位置指定するだけ. 指定するのは数と位置だけなので。数も位置も固定とランダムの2通りで指定できる。
 // 両方を受け取る方法・・typeofしてnumberなら固定、そうでなければランダム指定（[2, 3]とか。objectになる。）
 // [3, 9]ってやったときに3,4,5,6,7,8,9のうちどれかが出て欲しい。関数作ろう。
-class program{
-	constructor(){
+
+// repeat:実行回数。-1だとエンドレス。-1の場合はmasterが命令してinActiveにする感じにしたりして。知らんけど。
+// 知らんのかいなー
+class generator{
+	constructor(repeat){
 		this.count = 0;
+    this.fire = false; // これがtrueになったらmasterがgenerateを呼び出す仕組み。
+    this.repeat = repeat;
+    this.active = true; // falseになったら排除するシステムとかそんな感じ。
+    // そこら辺のあれやこれやをupdateに書く。必要ならmasterに情報をもらう。
 	}
+  inActivate(){ this.active = false; }
+  fireOff(){
+    this.fire = false; // メソッドを使ってオフにしないとバグを見つけづらくなる。
+  }
 	update(){
+    if(!this.active){ return; }
 		this.count++;
 	}
-	generate(command){
+	generate(){
+    // 敵のデータを返す。配列の形になっている。多分。
+    return [];
 	}
 }
 
-// 一定の範囲に一定フレームごとに1匹ずつ出現させるプログラム。
-class simpleProgram extends program{
+// ひとつの範囲に一定フレームごとに1匹ずつ出現させるプログラム。
+// interval:実行間隔 num:数、または数の範囲 pos:位置、または位置の範囲.
+class simpleMonoGenerator extends generator{
+  constructor(repeat, interval, num, pos){
+    super(repeat);
+    this.interval = interval;
+    this.data = {num:num, pos:pos}; // numやposは数、または範囲指定の2成分配列
+  }
+  update(){
+    if(!this.active){ return; }
+    this.count++;
+    if(this.count === this.interval){
+      this.fire = true;
+      this.count = 0;
+      if(this.repeat > 0){ this.repeat--; }
+      if(this.repeat === 0){ this.inActivate(); }
+    }
+  }
+  generate(){
+    let enemyData = getParam(this.data.num, this.data.pos);
+    return [enemyData];
+  }
+}
 
+// 複数の範囲に一定フレームごとに複数匹ずつ出現させる。
+class simpleMultiGenerator extends generator{
+  constructor(repeat, interval, numArray, posArray){
+    super(repeat);
+    this.interval = interval;
+    this.dataArray = [];
+    for(let i = 0; i < numArray.length; i++){
+      this.dataArray.push({num:numArray[i], pos:posArray[i]});
+    };
+  }
+  update(){
+    if(this.repeat === 0){ return; }
+    this.count++;
+    if(this.count === this.interval){
+      this.fire = true;
+      if(this.repeat > 0){ this.repeat--; }
+    }
+  }
+  generate(){
+    let enemyDataArray = [];
+    for(let i = 0; i < this.dataArray.length; i++){
+      enemyDataArray.push(getParam(this.dataArray[i].num, this.dataArray[i].pos));
+    }
+    return enemyDataArray;
+  }
 }
 
 // objが4とか9のときは4や9を返す。[11, 13]とかならたとえばこのときは11, 12, 13のどれかを返す。
 // typeof便利やな。どんどん使っていこう。
 // numとxの組を返す関数。すなわち敵の情報のすべて。
-function getParam(n, p){
-	let num, x;
-	if(typeof(n) === "number"){ num = n; }else{ num = Math.floor(random(n[0], n[1] + 1)); }
-	if(typeof(p) === "number"){ x = p; }else{ x = random(p[0], p[1]); }
-	return {num:num, x:x};
+function getParam(num, pos){
+	let n, x;
+	if(typeof(num) === "number"){ n = num; }else{ n = Math.floor(random(num[0], num[1] + 1)); }
+	if(typeof(pos) === "number"){ x = pos; }else{ x = random(pos[0], pos[1]); }
+	return {n:n, x:x};
 }
 
 // パターン1: 一定時間ごとに上部5か所のどこかに出現する
