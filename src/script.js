@@ -319,11 +319,38 @@ class effect{
 	}
 }
 
+// スコアの増減（ゲームプレイ中）を数字で表現する感じ。
+// 複数ある場合は縦に重なって同時に出現する。青で＋と、赤で－で表現。30フレームで消える。上に上昇。
+class numberFloat{
+	constructor(num, x, y){
+    this.num = num;
+		this.x = x;
+		this.y = y;
+		this.count = 0;
+		this.active = true;
+	}
+	inActivate(){ this.active = false; }
+	update(){
+		if(!this.active){ return; }
+		this.count++;
+		if(this.count === 45){ this.inActivate(); }
+	}
+	render(){
+		if(!this.active){ return; }
+		let t = (this.num > 0 ? 0 : 255);
+		fill(t, 0, 255 - t);
+		textSize(25);
+		let mark = (this.num > 0 ? "+" : "-");
+		text(mark + abs(this.num).toString(), Math.floor(this.x), this.y - this.count);
+	}
+}
+
 class master{
 	constructor(){
 		this.enemyArray = [];
 		this.shotArray = [];
 		this.effectArray = []; // 8方向に円が飛び出して消える感じ。
+    this.floatArray = []; // スコア変動をヴィジュアライズするもの
 		this.myCannon = new cannon();
 		this.stageNumber = 0;
 		this.maxStageNumber = 2;
@@ -412,12 +439,14 @@ class master{
 		this.enemyArray.forEach((e) => { e.update(); })
 		this.shotArray.forEach((s) => { s.update(); });
 		this.effectArray.forEach((ef) => { ef.update(); });
+    this.floatArray.forEach((f) => { f.update(); });
 		this.myCannon.update();
 	}
 	render(){
 		this.enemyArray.forEach((e) => { e.render(); })
 		this.shotArray.forEach((s) => { s.render(); });
 		this.effectArray.forEach((ef) => { ef.render(); });
+    this.floatArray.forEach((f) => { f.render(); });
 		this.myCannon.render();
 	}
 	drawStatus(){
@@ -486,7 +515,10 @@ class master{
 			let s = this.shotArray[i];
 			// shotArray[i]のフラグを取得してchainの計算をするのはここで
 			let flag = s.getHitFlag();
-			if(flag !== 0){ this.calcChain(flag); } // フラグが0の場合は何もしない
+			if(flag !== 0){ // フラグが0の場合は何もしない
+        let diff = this.calcChain(flag); // chain計算の際のスコア変動を戻り値として受け取る。
+        if(diff !== 0){ this.calcScore(diff, s.x, s.y); }
+      }
 			if(flag === 4){ s.setHitFlag(0); } // 弾かれた場合はフラグを0にする
 			if(s.active){ continue; }
 			this.shotArray.splice(i, 1); // not activeなら排除
@@ -494,12 +526,14 @@ class master{
 		// 倒したenemyを排除する
 		for(let i = 0; i < this.enemyArray.length; i++){
 			if(i === this.enemyArray.length){ break; }
-			if(this.enemyArray[i].alive){ continue; }
+      let e = this.enemyArray[i];
+			if(e.alive){ continue; }
 			// とりあえずこのタイミングで倒した敵のスコアが・・それだけ、ね。
       // 敵を倒すのはここ。
-			let index = this.enemyArray[i].getUniqueIndex();
-      let higherFactor = (this.enemyArray[i].y < height / 2 ? 2 : 1); // 高い場所で倒すとスコア2倍
-			this.calcScore(higherFactor * baseScore[index] * this.hitChain); // ここにthis.hitChainを掛ける感じ。
+			let index = e.getUniqueIndex();
+      let higherFactor = (e.y < height / 2 ? 2 : 1); // 高い場所で倒すとスコア2倍
+      // 高さのfactorとthis.hitChainを基礎点に掛けたものがスコアになる
+			this.calcScore(higherFactor * baseScore[index] * this.hitChain, e.x, e.y - e.diam / 2);
 			this.enemyArray.splice(i, 1);
       this.necessary--;
       // エフェクトが残ってしまうので、クリア判定は最後で。
@@ -509,6 +543,12 @@ class master{
 			if(i === this.effectArray.length){ break; }
 			if(this.effectArray[i].life > 0){ continue; }
 			this.effectArray.splice(i, 1);
+		}
+    // 終了したfloatを排除する（若干冗長・・ていうかこれもエフェクト扱いでいい気も）
+		for(let i = 0; i < this.floatArray.length; i++){
+			if(i === this.floatArray.length){ break; }
+			if(this.floatArray[i].active){ continue; }
+			this.floatArray.splice(i, 1);
 		}
 	}
 	check(){
@@ -529,8 +569,8 @@ class master{
         return;
       } // 陣地に到達されたら1ミス。
 		}
-    if(this.necessary === 0 && this.effectArray.length === 0){
-      // 必要数倒してかつエフェクトが終わっていることがクリア条件
+    if(this.necessary === 0 && this.effectArray.length === 0 && this.floatArray.length === 0){
+      // 必要数倒してかつエフェクト,フロートが終わっていることがクリア条件
       this.count = 60;
       this.toNextStage(); // ステージを進める
       if(this.stageNumber < this.maxStageNumber){
@@ -545,29 +585,34 @@ class master{
     this.generateEnemy();
 	}
 	calcChain(flag){
+    // スコア変動を戻り値に取る。
     switch(flag){
-			case 1:
-				this.hitChain += 1; this.missChain = 0; this.calcScore(100);
-				break;
-			case 2:
-				this.hitChain += 3; this.missChain = 0; this.calcScore(300);
-				break;
-			case 3:
+			case 1: //   /2shotは当てるだけで100点。
+				this.hitChain += 1; this.missChain = 0;
+        return 100;
+			case 2: //   /3shotは当てるだけで300点。
+				this.hitChain += 3; this.missChain = 0;
+				return 300;
+			case 3: //   +1shotは当てるだけで50点。
 				this.hitChain = 0; this.missChain = 0; this.calcScore(50);
-				break;
-			case 4:
-				this.hitChain = 0; this.missChain++; this.calcScore(-100 * this.missChain);
-				break;
+				return 50;
+			case 4: //   missChainの値×100点を引く。
+				this.hitChain = 0; this.missChain++;
+				return -100 * this.missChain;
 			case 5:
 				this.hitChain = 0;
-				break;
+        break;
 		}
+    return 0;
 	}
-	calcScore(diff){
+	calcScore(diff, x, y){
 		// diffの分だけスコアを増減する（減らすときはここに負の数が入る）
 		// 0未満や10000000以上にはならないようにする
 		this.score = constrain(this.score + diff, 0, 10000000);
 		this.calcScoreLevel();
+    if(this.state === 1){
+      this.floatArray.push(new numberFloat(diff, x, y));
+    }
 	}
 	calcScoreLevel(){
 		if(this.score < 10){ this.scoreLevel = 0; return; }
