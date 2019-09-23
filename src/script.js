@@ -295,7 +295,7 @@ class effect{
 		fill(this.color);
 		//let d = this.diam * this.life / 60;
 		//ellipse(this.x, this.y, d, d);
-    let r = this.diam * (0.5 - this.life / 60);
+    let r = this.diam * Math.sin(Math.PI * (0.5 - this.life / 60));
     for(let i = 0; i < 8; i++){
       ellipse(this.x + this.angleArrayX[i] * r, this.y + this.angleArrayY[i] * r, this.diam / 4, this.diam / 4);
     }
@@ -321,8 +321,7 @@ class master{
 	setGenerator(){
 		// どの範囲の数がどれくらいの確率で出るかみたいなこと
 		if(this.stageNumber === 0){
-      this.registGenerator({id:0, param:[3, 60, [2, 9], [180, 220]]});
-      this.registGenerator({id:1, param:[1, 1, [30, 60, 30], [100, 200, 300]]});
+      this.registGenerator({id:1, param:[1, 1, [[100, 999], [100, 999], [100, 999]], [100, 200, 300]]});
 		}
 	}
 	collisionCheck(){
@@ -526,8 +525,7 @@ class master{
 // 両方を受け取る方法・・typeofしてnumberなら固定、そうでなければランダム指定（[2, 3]とか。objectになる。）
 // [3, 9]ってやったときに3,4,5,6,7,8,9のうちどれかが出て欲しい。関数作ろう。
 
-// repeat:実行回数。-1だとエンドレス。-1の場合はmasterが命令してinActiveにする感じにしたりして。知らんけど。
-// 知らんのかいなー
+// repeat:実行回数。-1だとエンドレス。-1の場合はmasterが命令してinActiveにする感じにしたりして。
 class generator{
 	constructor(repeat){
 		this.count = 0;
@@ -585,11 +583,13 @@ class simpleMultiGenerator extends generator{
     };
   }
   update(){
-    if(this.repeat === 0){ return; }
+    if(!this.active){ return; }
     this.count++;
     if(this.count === this.interval){
       this.fire = true;
+      this.count = 0;
       if(this.repeat > 0){ this.repeat--; }
+      if(this.repeat === 0){ this.inActivate(); }
     }
   }
   generate(){
