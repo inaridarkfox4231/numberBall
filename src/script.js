@@ -3,8 +3,8 @@ let keyFlag; // キー情報
 
 // enemy関連
 const diamArray = [30, 40, 60, 65, 75, 80, 90];
-const sizeFactor = [1.1, 1.6, 2.1, 2.6, 3.1, 3.9, 4.6]; // 1, 2, 3, 4, 5桁
-const alignFactor = [3.0, 4.5, 6, 8, 8, 10, 15];
+//const sizeFactor = [1.1, 1.6, 2.1, 2.6, 3.1, 3.9, 4.6]; // 1, 2, 3, 4, 5桁
+//const alignFactor = [3.0, 4.5, 6, 8, 8, 10, 15];
 const DOWN_COS = Math.cos(Math.PI / 24);
 const DOWN_SIN = Math.sin(Math.PI / 24);
 const speedFactor = [2.4, 2.1, 1.8, 1.5, 1.2, 0.9, 0.6];
@@ -16,13 +16,11 @@ const shotScore = [100, 300, 50]; // /2, /3, +1を当てたときの基本スコ
 
 // load関連
 let assetsIcon = []; // 0と1にグラフィックを入れる感じで
-let nums = []; // 0～9.
 const ass = "https://inaridarkfox4231.github.io/numberBallAssets/"; // 面倒なので。
 
 function preload(){
   // ここでloadImage("https://inaridarkfox4231.github.io/フォルダ名/ファイル名.png")ってやれば呼び出せるよ。
   assetsIcon.push(...[loadImage(ass + "player_0.png"), loadImage(ass + "player_1.png")]);
-  for(let i = 0; i <= 9; i++){ nums.push(loadImage(ass + "n_" + i + ".png")); }
 }
 
 function setup(){
@@ -216,9 +214,12 @@ class enemy{
 		fill(this.color);
 		ellipse(this.x, this.y, this.diam, this.diam);
 		// ここに透明処理かぶせてブリンクを表現したいかな。分かりづらいので。
-		fill(255);
-		textSize(this.diam / sizeFactor[this.factorIndex]);
-		text(this.num, this.x, this.y + this.diam / alignFactor[this.factorIndex]);
+		//fill(255);
+		//textSize(this.diam / sizeFactor[this.factorIndex]);
+		//text(this.num, this.x, this.y + this.diam / alignFactor[this.factorIndex]);
+    fill(0);
+    textSize(25);
+    text(this.num, this.x, this.y + this.diam / 2 + 20);
 	}
 	hit(shotTypeId){
 		// 当たった場合の処理。0:/2shot. 1:/3shot. 2:+1shot.
@@ -341,8 +342,8 @@ class master{
 	setGenerator(){
 		// どの範囲の数がどれくらいの確率で出るかみたいなこと
 		if(this.stageNumber === 0){
-      this.necessary = 2;
-      this.registGenerator({id:0, param:[2, 60, 2, 200]});
+      this.necessary = 5;
+      this.registGenerator({id:1, param:[1, 1, [7, 11, 3, 11, 7], [80, 160, 200, 240, 320]]});
 		}else if(this.stageNumber === 1){
       this.necessary = 2;
       this.registGenerator({id:0, param:[2, 60, 3, 200]});
@@ -672,7 +673,7 @@ class simpleMultiGenerator extends generator{
     this.dataArray = [];
     for(let i = 0; i < numArray.length; i++){
       this.dataArray.push({num:numArray[i], pos:posArray[i]});
-    };
+    }
   }
   update(){
     if(!this.active){ return; }
