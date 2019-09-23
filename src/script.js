@@ -501,7 +501,8 @@ class master{
 			// とりあえずこのタイミングで倒した敵のスコアが・・それだけ、ね。
       // 敵を倒すのはここ。
 			let index = this.enemyArray[i].getUniqueIndex();
-			this.calcScore(baseScore[index] * this.hitChain); // ここにthis.hitChainを掛ける感じ。
+      let higherFactor = (this.enemyArray[i].y < height / 2 ? 2 : 1); // 高い場所で倒すとスコア2倍
+			this.calcScore(higherFactor * baseScore[index] * this.hitChain); // ここにthis.hitChainを掛ける感じ。
 			this.enemyArray.splice(i, 1);
       this.necessary--;
       // エフェクトが残ってしまうので、クリア判定は最後で。
@@ -524,6 +525,7 @@ class master{
         // FAILEDかGAMEOVERかを残機数で判定。1減らして0かどうかで見る。
         this.count = 60;
         this.life--;
+				this.calcScore(-2000); // やられるとスコア-2000.
         if(this.life > 0){ this.state = 2; }else{ this.state = 3; }
         return;
       } // 陣地に到達されたら1ミス。
@@ -532,10 +534,10 @@ class master{
       // 必要数倒してかつエフェクトが終わっていることがクリア条件
       this.count = 60;
       this.toNextStage(); // ステージを進める
-      console.log(this.stageNumber);
       if(this.stageNumber < this.maxStageNumber){
         this.state = 4;
       }else{
+				this.calcScore(this.life * 10000); // ライフボーナス(残機数×10000)
         this.state = 5;
       }
     }
