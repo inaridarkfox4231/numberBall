@@ -339,7 +339,7 @@ class master{
     this.count = 60; // メッセージ表示用
     this.necessary = 0; // クリアに必要な討伐数
     this.state = 0; // 0:START、1:PLAY、2:FAILED、3:GAMEOVER、4:CLEAR、5:ALL CLEAR.
-    this.maxLife = 10; // 残機数復元用
+    this.maxLife = 2; // 残機数復元用
     this.life = this.maxLife; // 残機数
 	}
 	setGenerator(){
@@ -525,8 +525,10 @@ class master{
         // FAILEDかGAMEOVERかを残機数で判定。1減らして0かどうかで見る。
         this.count = 60;
         this.life--;
-				this.calcScore(-2000); // やられるとスコア-2000.
         if(this.life > 0){ this.state = 2; }else{ this.state = 3; }
+        // 先にstateを変えて数字が出現しないようにする
+        let diff = Math.floor(this.score * 0.01) * 10;
+				this.calcScore(-diff); // やられるとスコア0.9倍.
         return;
       } // 陣地に到達されたら1ミス。
 		}
@@ -537,8 +539,10 @@ class master{
       if(this.stageNumber < this.maxStageNumber){
         this.state = 4;
       }else{
-				this.calcScore(this.life * 10000); // ライフボーナス(残機数×10000)
         this.state = 5;
+        // 先にstateを変えて数字が出現しないようにする。
+        let diff = Math.floor((this.score * (Math.pow(1.1, this.life) - 1)) / 10) * 10;
+				this.calcScore(diff); // ライフボーナス(残機数の回数だけ1.1倍)
       }
     }
     this.generateEnemy();
