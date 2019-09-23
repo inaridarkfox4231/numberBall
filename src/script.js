@@ -14,14 +14,22 @@ const message = ["STAGE", "PLAY", "FAILED...", "GAME OVER...", "CLEAR!", "ALL CL
 const baseScore = [200, 500, 2000, 5000, 10000, 30000, 50000] // 1, 2, 3, 4, 5, 6, 7桁
 const shotScore = [100, 300, 50]; // /2, /3, +1を当てたときの基本スコア。
 
-let playerIcon = []; // 0と1にグラフィックを入れる感じで
+// load関連
+let assetsIcon = []; // 0と1にグラフィックを入れる感じで
+let nums = []; // 0～9.
+const ass = "https://inaridarkfox4231.github.io/numberBallAssets/"; // 面倒なので。
+
+function preload(){
+  // ここでloadImage("https://inaridarkfox4231.github.io/フォルダ名/ファイル名.png")ってやれば呼び出せるよ。
+  assetsIcon.push(...[loadImage(ass + "player_0.png"), loadImage(ass + "player_1.png")]);
+  for(let i = 0; i <= 9; i++){ nums.push(loadImage(ass + "n_" + i + ".png")); }
+}
 
 function setup(){
   createCanvas(480, 540);
 	textAlign(CENTER);
 	masterModule = new master();
   masterModule.setGenerator();
-  createPlayerIcon();
 	noStroke();
 	keyFlag = 0;
 }
@@ -48,19 +56,6 @@ function keyTyped(){
 
 function flagReset(){
 	keyFlag = 0;
-}
-
-function createPlayerIcon(){
-  for(let i = 0; i < 2; i++){
-    let icon = createGraphics(20, 20);
-    icon.noStroke();
-    icon.fill(i * 255);
-    icon.ellipse(10, 10, 20, 20);
-    icon.fill((1 - i) * 255);
-    icon.rect(5, 5, 3, 6);
-    icon.rect(13, 5, 3, 6);
-    playerIcon.push(icon);
-  }
 }
 
 // めんどくさいからボール型が左右に動くだけにしよう。で、直線的にショットが飛んでいく感じ。
@@ -109,7 +104,8 @@ class cannon{
 		rect(this.x - 5, this.y - 5, 3, 6);
 		rect(this.x + 3, this.y - 5, 3, 6);*/
     let index = (this.wait > 0 ? 1 : 0);
-    image(playerIcon[index], this.x - 10, this.y - 10);
+    //image(playerIcon[index], this.x - 10, this.y - 10);
+    image(assetsIcon[index], this.x - 10, this.y - 10);
 	}
 	reset(){
 		this.shotTypeId = 0;
@@ -427,7 +423,7 @@ class master{
     //fill(0);
     //text(this.life, 100, 200); // とりあえず適当に。
     for(let i = 0; i < this.life; i++){
-      image(playerIcon[0], i * 30 + 5, 5)
+      image(assetsIcon[0], i * 30 + 5, 5)
     }
     // 最終的には例のアイコンをいくつも表示する感じ。
     if(this.count > 0){
