@@ -8,15 +8,20 @@ const alignFactor = [3.0, 4.5, 6, 8, 8, 10, 15];
 const DOWN_COS = Math.cos(Math.PI / 24);
 const DOWN_SIN = Math.sin(Math.PI / 24);
 const speedFactor = [2.4, 2.1, 1.8, 1.5, 1.2, 0.9, 0.6];
+const message = ["STAGE", "PLAY", "FAILED...", "GAME OVER...", "CLEAR!", "ALL CLEAR!"];
 
 // score関連
 const baseScore = [200, 500, 2000, 5000, 10000, 30000, 50000] // 1, 2, 3, 4, 5, 6, 7桁
 const shotScore = [100, 300, 50]; // /2, /3, +1を当てたときの基本スコア。
 
+let playerIcon = []; // 0と1にグラフィックを入れる感じで
+
 function setup(){
   createCanvas(480, 540);
 	textAlign(CENTER);
 	masterModule = new master();
+  masterModule.setGenerator();
+  createPlayerIcon();
 	noStroke();
 	keyFlag = 0;
 }
@@ -43,6 +48,19 @@ function keyTyped(){
 
 function flagReset(){
 	keyFlag = 0;
+}
+
+function createPlayerIcon(){
+  for(let i = 0; i < 2; i++){
+    let icon = createGraphics(20, 20);
+    icon.noStroke();
+    icon.fill(i * 255);
+    icon.ellipse(10, 10, 20, 20);
+    icon.fill((1 - i) * 255);
+    icon.rect(5, 5, 3, 6);
+    icon.rect(13, 5, 3, 6);
+    playerIcon.push(icon);
+  }
 }
 
 // めんどくさいからボール型が左右に動くだけにしよう。で、直線的にショットが飛んでいく感じ。
@@ -85,11 +103,13 @@ class cannon{
 	getPos(){ return {x:this.x, y:this.y}; }
 	fireOff(){ this.fire = false; }
 	render(){
-		fill((this.wait > 0  ? 255 : 0));
+		/*fill((this.wait > 0  ? 255 : 0));
 		ellipse(this.x, this.y, 20, 20);
 		fill((this.wait > 0 ? 0 : 255));
 		rect(this.x - 5, this.y - 5, 3, 6);
-		rect(this.x + 3, this.y - 5, 3, 6);
+		rect(this.x + 3, this.y - 5, 3, 6);*/
+    let index = (this.wait > 0 ? 1 : 0);
+    image(playerIcon[index], this.x - 10, this.y - 10);
 	}
 	reset(){
 		this.shotTypeId = 0;
@@ -172,7 +192,7 @@ class enemy{
 		this.diam = diamArray[this.factorIndex];
 		this.color = enemy.getBodyColor(this.factorIndex);
 		this.x = x;
-		this.y = this.diam / 2;
+		this.y = this.diam / 2 + 40; // ちょっと下方修正（残機表示用に）
 		this.speed = speedFactor[this.factorIndex];
 		let sgn = random([1, -1]);
 		this.vx = this.speed * sgn * DOWN_COS;
@@ -309,20 +329,28 @@ class master{
 		this.effectArray = []; // 8方向に円が飛び出して消える感じ。
 		this.myCannon = new cannon();
 		this.stageNumber = 0;
-		this.maxStageNumber = 1;
+		this.maxStageNumber = 2;
 		this.score = 0;
 		this.scoreLevel = 0; // 桁数。スコアが変わるたびに変更される。
 		this.hitChain = 0;  // 連鎖ボーナス用
 		this.missChain = 0; // 連鎖ペナルティ用
     // ジェネレータ関連
     this.generatorArray = [];
-    this.setGenerator();
+    this.count = 60; // メッセージ表示用
+    this.necessary = 0; // クリアに必要な討伐数
+    this.state = 0; // 0:START、1:PLAY、2:FAILED、3:GAMEOVER、4:CLEAR、5:ALL CLEAR.
+    this.maxLife = 10; // 残機数復元用
+    this.life = this.maxLife; // 残機数
 	}
 	setGenerator(){
 		// どの範囲の数がどれくらいの確率で出るかみたいなこと
 		if(this.stageNumber === 0){
-      this.registGenerator({id:1, param:[1, 1, [[100, 999], [100, 999], [100, 999]], [100, 200, 300]]});
-		}
+      this.necessary = 2;
+      this.registGenerator({id:0, param:[2, 60, 2, 200]});
+		}else if(this.stageNumber === 1){
+      this.necessary = 2;
+      this.registGenerator({id:0, param:[2, 60, 3, 200]});
+    }
 	}
 	collisionCheck(){
 		// shotと敵・・当たったら敵がやられるか、敵が数を減らすか、数を増やすか、その度に色々再計算。
@@ -348,21 +376,41 @@ class master{
 		}
 	}
 	toNextStage(){
-		this.stageNumber = (this.stageNumber + 1) % this.maxStageNumber;
+		this.stageNumber++;
 	}
 	reset(){
 		this.enemyArray = [];
 		this.shotArray = [];
     this.generatorArray = [];
 		this.myCannon.reset();
-		this.score = 0; // スコアリセット
-		this.scoreLevel = 0; // スコアレベルリセット
+    if(this.state === 3 || this.state === 5){
+      // スコアのリセットはGAMEOVERのときとALL CLEARのときだけ
+		  this.score = 0; // スコアリセット
+		  this.scoreLevel = 0; // スコアレベルリセット
+      this.life = this.maxLife; // 自機数を戻す
+      this.stageNumber = 0; // ALL CLEARのときは勝手に0になるけどGAMEOVERでは途中からでも0になるので
+    }
 		// chainのリセット忘れずに
 		this.hitChain = 0;
 		this.missChain = 0;
 		this.setGenerator();
+    this.count = 60; // リセットでカウントを戻す
+    this.state = 0;
 	}
 	update(){
+    if(this.count > 0){
+      this.count--;
+      if(this.count === 0){
+        if(this.state === 0){
+          this.state = 1;
+        }else{
+          // START以外はすべてSTARTに戻る。
+          this.reset();
+          this.state = 0;
+        }
+      }
+      return;
+    }
     this.generatorArray.forEach((g) => { g.update(); })
 		this.enemyArray.forEach((e) => { e.update(); })
 		this.shotArray.forEach((s) => { s.update(); });
@@ -376,6 +424,26 @@ class master{
 		this.myCannon.render();
 	}
 	drawStatus(){
+    //fill(0);
+    //text(this.life, 100, 200); // とりあえず適当に。
+    for(let i = 0; i < this.life; i++){
+      image(playerIcon[0], i * 30 + 5, 5)
+    }
+    // 最終的には例のアイコンをいくつも表示する感じ。
+    if(this.count > 0){
+      push();
+      fill(0);
+      textAlign(LEFT);
+      textSize(30);
+      let t = "";
+      if(this.state === 0){
+        t = "STAGE " + (this.stageNumber + 1).toString();
+      }else{
+        t = message[this.state];
+      }
+      text(t, 50, 80);
+      pop();
+    }
 		fill(200);
 		rect(0, 500, 480, 40);
 		const textArray = ["/2", "/3", "+1"];
@@ -390,8 +458,8 @@ class master{
 		}
 		fill(0);
 		textSize(30);
-		//let factor = Math.floor(frameCount / 60) % 7;
-		text(this.score, 460 - 10 * this.scoreLevel, 530); // 1桁、2桁、・・・、7桁について460, 450, 440, 430, 420, 410, 400って感じかな・・
+		text(this.score, 460 - 10 * this.scoreLevel, 530);
+    // 1桁、2桁、・・・、7桁について460, 450, 440, 430, 420, 410, 400って感じかな・・
 		// スコアを計算するたびに桁数を計算してそれを元に表示補正を行う。補正の内容はこれでOK.
 		if(this.hitChain > 0){
 			fill(0, 0, 255);
@@ -431,9 +499,12 @@ class master{
 			if(i === this.enemyArray.length){ break; }
 			if(this.enemyArray[i].alive){ continue; }
 			// とりあえずこのタイミングで倒した敵のスコアが・・それだけ、ね。
+      // 敵を倒すのはここ。
 			let index = this.enemyArray[i].getUniqueIndex();
 			this.calcScore(baseScore[index] * this.hitChain); // ここにthis.hitChainを掛ける感じ。
 			this.enemyArray.splice(i, 1);
+      this.necessary--;
+      // エフェクトが残ってしまうので、クリア判定は最後で。
 		}
 		// 終了したeffectを排除する
 		for(let i = 0; i < this.effectArray.length; i++){
@@ -444,12 +515,30 @@ class master{
 	}
 	check(){
 		// 衝突判定、消滅判定、GAMEOVER判定。
+    // count > 0のときはやらない
+    if(this.count > 0){ return; }
 		this.collisionCheck(); // ここでshotのフラグが確定する
 		this.remove(); // shotのフラグを元にchainが計算され、それを元に敵を倒した場合のスコアも計算される
 		for(let i = 0; i < this.enemyArray.length; i++){
-			if(this.enemyArray[i].arrived){ this.reset(); break; } // 陣地に到達されたらGAMEOVER.
-			if(this.enemyArray[i].num >= 10000000){ this.reset(); break; } // 数字が8桁を超えたらGAMEOVER.
+			if(this.enemyArray[i].arrived || this.enemyArray[i].num >= 10000000){
+        // FAILEDかGAMEOVERかを残機数で判定。1減らして0かどうかで見る。
+        this.count = 60;
+        this.life--;
+        if(this.life > 0){ this.state = 2; }else{ this.state = 3; }
+        return;
+      } // 陣地に到達されたら1ミス。
 		}
+    if(this.necessary === 0 && this.effectArray.length === 0){
+      // 必要数倒してかつエフェクトが終わっていることがクリア条件
+      this.count = 60;
+      this.toNextStage(); // ステージを進める
+      console.log(this.stageNumber);
+      if(this.stageNumber < this.maxStageNumber){
+        this.state = 4;
+      }else{
+        this.state = 5;
+      }
+    }
     this.generateEnemy();
 	}
 	calcChain(flag){
@@ -521,7 +610,8 @@ class master{
 // これをmasterがいくつか持ってて、updateさせて準備が出来たらgenerateさせて別メソッドでenemyArrayに補充する感じ。
 // signalをtrueにすれば・・で、いくつかenemy,ひとつとは限らない、複数かも知れないそれらをこっちで用意してenemy配列を出力。
 // masterがそれを受け取ってenemyArrayに追加する流れ。
-// 要は、何フレーム後にいくつを数指定で位置指定するだけ. 指定するのは数と位置だけなので。数も位置も固定とランダムの2通りで指定できる。
+// 要は、何フレーム後にいくつを数指定で位置指定するだけ.
+// 指定するのは数と位置だけなので。数も位置も固定とランダムの2通りで指定できる。
 // 両方を受け取る方法・・typeofしてnumberなら固定、そうでなければランダム指定（[2, 3]とか。objectになる。）
 // [3, 9]ってやったときに3,4,5,6,7,8,9のうちどれかが出て欲しい。関数作ろう。
 
