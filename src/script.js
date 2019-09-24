@@ -215,6 +215,7 @@ class enemy{
     this.frameMax = 4 + this.factorIndex; // 最終的にはfactorIndexにより変化させる（4,5,6,7,8,9,10)
     this.leftImgArray = enemyLeftImgArray;
     this.rightImgArray = enemyRightImgArray;
+    this.downImg = enemyDownImg;
 	}
 	update(){
 		if(!this.alive){ return; }
@@ -324,12 +325,13 @@ class enemy{
 // enemyを倒したときのなんか。
 // (x, y)を中心として8方向に円を飛ばしたい。円の直径はdiamの1/4くらい。
 class effect{
-	constructor(x, y, diam, col){
+	constructor(x, y, col, img){
 		this.x = x;
 		this.y = y;
 		this.color = col;
-		this.diam = diam;
-		this.life = 30; // 0.5秒アニメ。とりあえず円が消える感じでいいよ。
+		this.diam = 40;
+    this.img = img;
+		this.life = 60; // 1秒アニメ。0.5秒だけアレが表示されて残りの0.5秒でいつも通りにやる。
     this.angleArrayX = [];
     this.angleArrayY = [];
     for(let i = 0; i < 8; i++){
@@ -341,13 +343,24 @@ class effect{
 		this.life--; // lifeが0のeffectはcheckで排除する。
 	}
 	render(){
-		fill(this.color);
+    if(this.life > 30){
+      image(this.img, this.x - 20, this.y - 25);
+    }else{
+      fill(this.color);
+      // angleは0からPI/2まで動かしたい。lifeが30から0なので60で割って逆転させる。
+      let angle = Math.PI * ((30 - this.life) / 60);
+      let r = this.diam * Math.sin(angle);
+      for(let i = 0; i < 8; i++){
+        ellipse(this.x + this.angleArrayX[i] * r, this.y + this.angleArrayY[i] * r, this.diam / 4, this.diam / 4);
+      }
+    }
+		//fill(this.color);
 		//let d = this.diam * this.life / 60;
 		//ellipse(this.x, this.y, d, d);
-    let r = this.diam * Math.sin(Math.PI * (0.5 - this.life / 60));
-    for(let i = 0; i < 8; i++){
-      ellipse(this.x + this.angleArrayX[i] * r, this.y + this.angleArrayY[i] * r, this.diam / 4, this.diam / 4);
-    }
+    //let r = this.diam * Math.sin(Math.PI * (0.5 - this.life / 60));
+    //for(let i = 0; i < 8; i++){
+    //  ellipse(this.x + this.angleArrayX[i] * r, this.y + this.angleArrayY[i] * r, this.diam / 4, this.diam / 4);
+    //}
 	}
 }
 
@@ -426,7 +439,7 @@ class master{
 					let hitFlag = e.hit(s.getShotTypeId());
 					s.hit(hitFlag);
 					// エフェクト発生は倒した場合だけ！
-					if(!e.alive){ this.createEffect(e.x, e.y, e.diam, e.color); }
+					if(!e.alive){ this.createEffect(e.x, e.y, e.color, e.downImg); }
 				}
 			}
 		}
@@ -534,8 +547,8 @@ class master{
 		this.shotArray.push(new shot(p.x, p.y, shotTypeId));
 		this.myCannon.fireOff();
 	}
-	createEffect(x, y, diam, col){
-		this.effectArray.push(new effect(x, y, diam, col));
+	createEffect(x, y, col, img){
+		this.effectArray.push(new effect(x, y, col, img));
 	}
 	remove(){
 		// 画面外に飛び出したshotを排除する
