@@ -218,11 +218,11 @@ class shot{
 class enemy{
 	constructor(num, x){
 		this.num = num;
-		this.uniqueIndex = enemy.calcFactorIndex(num); // スコア計算などに使う不変Index
+		this.uniqueIndex = getFactorIndex(num); // スコア計算などに使う不変Index
 		this.factorIndex = this.uniqueIndex; // 文字表示などに使う可変Index（0~6）
 		//this.diam = diamArray[this.factorIndex];
     this.diam = 40; // 直径は固定
-		this.color = enemy.getBodyColor(this.uniqueIndex);
+		this.color = getColor(this.uniqueIndex);
 		this.x = x;
 		this.y = this.diam / 2 + 40; // ちょっと下方修正（残機表示用に）
 		this.speed = speedFactor[this.factorIndex];
@@ -293,16 +293,8 @@ class enemy{
 		// 1になったら爆砕。
     // masterがこれを検知して、配列から外し、エフェクトを発生させる流れ。
 		if(this.num === 1){ this.alive = false; return hitFlag; }
-    let newIndex = enemy.calcFactorIndex(this.num);
+    let newIndex = getFactorIndex(this.num);
     this.formChange(newIndex);
-		//this.factorIndex = enemy.calcFactorIndex(this.num);
-		//this.diam = diamArray[this.factorIndex];
-		//this.speed = speedFactor[this.factorIndex];
-    //this.frameMax = 4 + this.factorIndex; // フレーム制御変更
-    //this.frame = 0; // フレームリセット
-    // 最終的には使う画像も変更する・・
-		//this.vx = (this.vx > 0 ? this.speed * DOWN_COS : -this.speed * DOWN_COS);
-		//this.vy = this.speed * DOWN_SIN;
     // 30, 40, 50にしてみる。
 		if(hitFlag > 0 && hitFlag < 4){
 			if(shotTypeId < 2){
@@ -327,101 +319,101 @@ class enemy{
 		this.vy = this.speed * DOWN_SIN;
   }
 	getUniqueIndex(){ return this.uniqueIndex; }
-	static getBodyColor(index){
-		switch(index){
-			case 0:
-				return color(255, 0, 0); // 赤
-			case 1:
-				return color(230, 177, 0); // オレンジ
-			case 2:
-				return color(34, 177, 76); // 緑
-			case 3:
-				return color(0, 162, 232); // 水色
-			case 4:
-				return color(163, 73, 164); // 紫
-			case 5:
-				return color(185, 122, 87); // 茶色
-		}
-		return color(127); // 灰色(7桁)
-	}
-	static calcFactorIndex(num){
-	  if(num < 10){ return 0; }
-	  else if(num < 100){ return 1; }
-	  else if(num < 1000){ return 2; }
-	  else if(num < 10000){ return 3; }
-		else if(num < 100000){ return 4; }
-		else if(num < 1000000){ return 5; }
-	  return 6;
-  }
+}
+
+// 使う機会が多いのでグローバルにする
+function getColor(index){
+  let colors = [
+    color(255, 0, 0), color(230, 177, 0), color(34, 177, 76), color(0, 162, 232),
+    color(163, 73, 164), color(185, 122, 87), color(127)
+  ]; // 赤、オレンジ、緑、水色、紫、茶色、灰色
+  return colors[index];
+}
+
+// 要するにログ10の対数
+function getFactorIndex(num){
+  if(num < 10){ return 0; }
+  else if(num < 100){ return 1; }
+  else if(num < 1000){ return 2; }
+  else if(num < 10000){ return 3; }
+  else if(num < 100000){ return 4; }
+  else if(num < 1000000){ return 5; }
+  return 6;
 }
 
 // enemyを倒したときのなんか。
 // (x, y)を中心として8方向に円を飛ばしたい。円の直径はdiamの1/4くらい。
-class effect{
-	constructor(x, y, col, img){
-		this.x = x;
-		this.y = y;
-		this.color = col;
-		this.diam = 40;
-    this.img = img;
-		this.life = 60; // 1秒アニメ。0.5秒だけアレが表示されて残りの0.5秒でいつも通りにやる。
+// effect → downEffect: やられた場合のエフェクト。numberEffect: 数字がふわー。barrierEffect: 攻撃時の無敵状態。
+// 無敵状態の時のアニメは別に作る（正面の画像をいじる）
+// 共通成分は発動場所(x, y)と経過時間(life)にする。
+// 実際には使わないbaseEffectクラス。種類が多岐にわたるのでこのままでは意味を成さない。
+class baseEffect{
+  constructor(x, y, life){
+    this.x = x;
+    this.y = y;
+    this.life = life;
+    this.maxLife = life; // 初期値
+  }
+  update(){
+    this.life--; // 0になったら終了。ここは共通かなぁ。
+  }
+  render(){}
+}
+
+// 敵がやられた場合のエフェクト。60フレーム。最初の30フレームでダウン画像。
+class downEffect extends baseEffect{
+  constructor(x, y, life, index){
+    super(x, y, life);
+    this.color = getColor(index);
+    this.radius = 40 + 4 * index; // 大きくする？
+    this.img = enemyDownImgArray[index];
     this.angleArrayX = [];
     this.angleArrayY = [];
     for(let i = 0; i < 8; i++){
       this.angleArrayX.push(Math.cos(Math.PI * i / 4));
       this.angleArrayY.push(Math.sin(Math.PI * i / 4));
     }
-	}
-  update(){
-		this.life--; // lifeが0のeffectはcheckで排除する。
-	}
-	render(){
-    if(this.life > 30){
+  }
+  render(){
+    if(this.life * 2 > this.maxLife){
       image(this.img, this.x - 20, this.y - 25);
     }else{
+      // angleは0からPI/2まで動くので、lifeの値を2倍してmaxから引く。で、maxの2倍で割る。
+      let angle = Math.PI * (2 * this.life - this.maxLife) / (2 * this.maxLife);
+      let r = this.radius * Math.sin(angle);
       fill(this.color);
-      // angleは0からPI/2まで動かしたい。lifeが30から0なので60で割って逆転させる。
-      let angle = Math.PI * ((30 - this.life) / 60);
-      let r = this.diam * Math.sin(angle);
       for(let i = 0; i < 8; i++){
-        ellipse(this.x + this.angleArrayX[i] * r, this.y + this.angleArrayY[i] * r, this.diam / 4, this.diam / 4);
+        ellipse(
+          this.x + r * this.angleArrayX[i], this.y + r * this.angleArrayY[i],
+          this.radius / 4, this.radius / 4
+        );
       }
     }
-	}
+  }
 }
 
-// スコアの増減（ゲームプレイ中）を数字で表現する感じ。
-// 複数ある場合は縦に重なって同時に出現する。青で＋と、赤で－で表現。30フレームで消える。上に上昇。
-class numberFloat{
-	constructor(num, x, y){
+ // 数字が出るエフェクト。増加は青、減少は赤、45フレーム。
+class numberEffect extends baseEffect{
+  constructor(x, y, life, num){
+    super(x, y, life);
+    // life, これも45で決め打ちだけど。
     this.num = num;
-		this.x = x;
-		this.y = y;
-		this.count = 0;
-		this.active = true;
-	}
-	inActivate(){ this.active = false; }
-	update(){
-		if(!this.active){ return; }
-		this.count++;
-		if(this.count === 45){ this.inActivate(); }
-	}
-	render(){
-		if(!this.active){ return; }
-		let t = (this.num > 0 ? 0 : 255);
-		fill(t, 0, 255 - t);
+  }
+  render(){
+    let t = (this.num > 0 ? 0 : 255);
+    fill(t, 0, 255 - t);
 		textSize(25);
 		let mark = (this.num > 0 ? "+" : "-");
-		text(mark + abs(this.num).toString(), Math.floor(this.x), this.y - this.count);
-	}
+		text(mark + abs(this.num).toString(), Math.floor(this.x), this.y - (this.maxLife - this.life));
+  }
 }
 
 class master{
 	constructor(){
 		this.enemyArray = [];
 		this.shotArray = [];
-		this.effectArray = []; // 8方向に円が飛び出して消える感じ。
-    this.floatArray = []; // スコア変動をヴィジュアライズするもの
+		this.effectArray = []; // 敵倒すとか数字出るとか各種エフェクト
+    //this.floatArray = []; // スコア変動をヴィジュアライズするもの
 		this.myCannon = new cannon();
 		this.stageNumber = 0;
 		this.maxStageNumber = 2;
@@ -441,7 +433,7 @@ class master{
 		// どの範囲の数がどれくらいの確率で出るかみたいなこと
 		if(this.stageNumber === 0){
       this.necessary = 5;
-      this.registGenerator({id:1, param:[1, 1, [2, 20, 200, 2000, 20000], [80, 160, 200, 240, 320]]});
+      this.registGenerator({id:1, param:[1, 1, [2, 2, 2, 2, 2], [80, 160, 200, 240, 320]]});
 		}else if(this.stageNumber === 1){
       this.necessary = 2;
       this.registGenerator({id:0, param:[2, 60, 3, 200]});
@@ -464,18 +456,21 @@ class master{
 					// 衝突した場合
 					let hitFlag = e.hit(s.getShotTypeId());
 					s.hit(hitFlag);
-					// エフェクト発生は倒した場合だけ！
-					if(!e.alive){ this.createEffect(e.x, e.y, e.color, e.downImg); }
+					// エフェクト発生は倒した場合だけ！indexだけ渡す。
+          if(!e.alive){ this.effectArray.push(new downEffect(e.x, e.y, 60, e.uniqueIndex)); }
+					//if(!e.alive){ this.createDownEffect(e.x, e.y, e.uniqueIndex); }
 				}
 			}
 		}
 	}
 	toNextStage(){
+    // そのうちいじる必要が生じるかも？
 		this.stageNumber++;
 	}
 	reset(){
 		this.enemyArray = [];
 		this.shotArray = [];
+    this.effectArray = [];  // エフェクト配列も空にする
     this.generatorArray = [];
 		this.myCannon.reset();
     if(this.state === 3 || this.state === 5){
@@ -510,19 +505,15 @@ class master{
 		this.enemyArray.forEach((e) => { e.update(); })
 		this.shotArray.forEach((s) => { s.update(); });
 		this.effectArray.forEach((ef) => { ef.update(); });
-    this.floatArray.forEach((f) => { f.update(); });
 		this.myCannon.update();
 	}
 	render(){
 		this.enemyArray.forEach((e) => { e.render(); })
 		this.shotArray.forEach((s) => { s.render(); });
 		this.effectArray.forEach((ef) => { ef.render(); });
-    this.floatArray.forEach((f) => { f.render(); });
 		this.myCannon.render();
 	}
 	drawStatus(){
-    //fill(0);
-    //text(this.life, 100, 200); // とりあえず適当に。
     for(let i = 0; i < this.life; i++){
       image(assetsIcon[0], i * 30 + 5, 5)
     }
@@ -573,9 +564,6 @@ class master{
 		this.shotArray.push(new shot(p.x, p.y, shotTypeId));
 		this.myCannon.fireOff();
 	}
-	createEffect(x, y, col, img){
-		this.effectArray.push(new effect(x, y, col, img));
-	}
 	remove(){
 		// 画面外に飛び出したshotを排除する
 		// このときshotがフラグを持っているのでそれを使ってchainを計算する感じ。
@@ -615,12 +603,6 @@ class master{
 			if(this.effectArray[i].life > 0){ continue; }
 			this.effectArray.splice(i, 1);
 		}
-    // 終了したfloatを排除する（若干冗長・・ていうかこれもエフェクト扱いでいい気も）
-		for(let i = 0; i < this.floatArray.length; i++){
-			if(i === this.floatArray.length){ break; }
-			if(this.floatArray[i].active){ continue; }
-			this.floatArray.splice(i, 1);
-		}
 	}
 	check(){
 		// 衝突判定、消滅判定、GAMEOVER判定。
@@ -640,8 +622,8 @@ class master{
         return;
       } // 陣地に到達されたら1ミス。
 		}
-    if(this.necessary === 0 && this.effectArray.length === 0 && this.floatArray.length === 0){
-      // 必要数倒してかつエフェクト,フロートが終わっていることがクリア条件
+    if(this.necessary === 0 && this.effectArray.length === 0){
+      // 必要数倒してかつエフェクトが終わっていることがクリア条件
       this.count = 60;
       this.toNextStage(); // ステージを進める
       if(this.stageNumber < this.maxStageNumber){
@@ -682,7 +664,7 @@ class master{
 		this.score = constrain(this.score + diff, 0, 10000000);
 		this.calcScoreLevel();
     if(this.state === 1){
-      this.floatArray.push(new numberFloat(diff, x, y));
+      this.effectArray.push(new numberEffect(x, y, 45, diff));
     }
 	}
 	calcScoreLevel(){
