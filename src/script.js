@@ -17,18 +17,19 @@ const shotScore = [100, 300, 50]; // /2, /3, +1を当てたときの基本スコ
 // load関連
 let assetsIcon = []; // 0と1にグラフィックを入れる感じで
 let enemyLeftImg;
-let enemyLeftImgArray = [];
+let enemyLeftImgArraySet = []; // 左画像arrayのセット
 let enemyRightImg;
-let enemyRightImgArray = [];
+let enemyRightImgArraySet = []; // 右画像arrayのセット
 let enemyDownImg;
+let enemyDownImgArray = [];
 const ass = "https://inaridarkfox4231.github.io/numberBallAssets/"; // 面倒なので。
 
 function preload(){
   // ここでloadImage("https://inaridarkfox4231.github.io/フォルダ名/ファイル名.png")ってやれば呼び出せるよ。
   assetsIcon.push(...[loadImage(ass + "player_0.png"), loadImage(ass + "player_1.png")]);
-  enemyLeftImg = loadImage(ass + "enemyArrayleft0.png");
-  enemyRightImg = loadImage(ass + "enemyArrayright0.png");
-  enemyDownImg = loadImage(ass + "enemyDown_0.png");
+  enemyLeftImg = loadImage(ass + "enemyLeftImg.png");
+  enemyRightImg = loadImage(ass + "enemyRightImg.png");
+  enemyDownImg = loadImage(ass + "enemyDown.png");
 }
 
 function setup(){
@@ -38,6 +39,22 @@ function setup(){
   masterModule.setGenerator();
 	noStroke();
 	keyFlag = 0;
+  for(let k = 0; k < 7; k++){
+    // setにarrayをひとつずつ入れていく。0番に0~7の動き画像、1番に0~7の・・以下略。
+    let enemyLeftImgArray = [];
+    let enemyRightImgArray = [];
+    for(let i = 0; i < 8; i++){
+      let grLeft = createGraphics(40, 40);
+      let grRight = createGraphics(40, 40);
+      // 5番目と6番目が元画像（でかいの）における左上座標、そのあとは普通に40x40でOK.
+      grLeft.image(enemyLeftImg, 0, 0, 40, 40, i * 40, k * 40, 40, 40);
+      grRight.image(enemyRightImg, 0, 0, 40, 40, i * 40, k * 40, 40, 40);
+      enemyLeftImgArray.push(grLeft);
+      enemyRightImgArray.push(grRight);
+    }
+    enemyLeftImgArraySet.push(enemyLeftImgArray);
+    enemyRightImgArraySet.push(enemyRightImgArray);
+  }/*
   for(let i = 0; i < 8; i++){
     let grLeft = createGraphics(40, 40);
     let grRight = createGraphics(40, 40);
@@ -45,6 +62,11 @@ function setup(){
     grRight.image(enemyRightImg, 0, 0, 40, 40, i * 40, 0, 40, 40);
     enemyLeftImgArray.push(grLeft);
     enemyRightImgArray.push(grRight);
+  }*/
+  for(let k = 0; k < 7; k++){
+    let gr = createGraphics(40, 40);
+    gr.image(enemyDownImg, 0, 0, 40, 40, k * 40, 0, 40, 40);
+    enemyDownImgArray.push(gr);
   }
 }
 // 1桁は40, 2桁は50, 3桁は60が適切かも。4桁は65にしたい。5桁は75にしたい。
@@ -201,7 +223,7 @@ class enemy{
 		this.factorIndex = this.uniqueIndex; // 文字表示などに使う可変Index（0~6）
 		//this.diam = diamArray[this.factorIndex];
     this.diam = 40; // 直径は固定
-		this.color = enemy.getBodyColor(this.factorIndex);
+		this.color = enemy.getBodyColor(this.uniqueIndex);
 		this.x = x;
 		this.y = this.diam / 2 + 40; // ちょっと下方修正（残機表示用に）
 		this.speed = speedFactor[this.factorIndex];
@@ -213,9 +235,10 @@ class enemy{
 		this.count = 0; // 攻撃を受けたときにダメージに応じて速度が発生する感じ。
     this.frame = 0; // アニメーション制御用
     this.frameMax = 4 + this.factorIndex; // 最終的にはfactorIndexにより変化させる（4,5,6,7,8,9,10)
-    this.leftImgArray = enemyLeftImgArray;
-    this.rightImgArray = enemyRightImgArray;
-    this.downImg = enemyDownImg;
+    this.leftImgArray = enemyLeftImgArraySet[this.uniqueIndex];
+    this.rightImgArray = enemyRightImgArraySet[this.uniqueIndex];
+    this.downImg = enemyDownImgArray[this.uniqueIndex]; // ダウンイメージを色別にする
+    // ダウンイメージは最後まで変わらないので注意する
 	}
 	update(){
 		if(!this.alive){ return; }
@@ -271,14 +294,16 @@ class enemy{
 		// 1になったら爆砕。
     // masterがこれを検知して、配列から外し、エフェクトを発生させる流れ。
 		if(this.num === 1){ this.alive = false; return hitFlag; }
-		this.factorIndex = enemy.calcFactorIndex(this.num);
+    let newIndex = enemy.calcFactorIndex(this.num);
+    this.formChange(newIndex);
+		//this.factorIndex = enemy.calcFactorIndex(this.num);
 		//this.diam = diamArray[this.factorIndex];
-		this.speed = speedFactor[this.factorIndex];
-    this.frameMax = 4 + this.factorIndex; // フレーム制御変更
-    this.frame = 0; // フレームリセット
+		//this.speed = speedFactor[this.factorIndex];
+    //this.frameMax = 4 + this.factorIndex; // フレーム制御変更
+    //this.frame = 0; // フレームリセット
     // 最終的には使う画像も変更する・・
-		this.vx = (this.vx > 0 ? this.speed * DOWN_COS : -this.speed * DOWN_COS);
-		this.vy = this.speed * DOWN_SIN;
+		//this.vx = (this.vx > 0 ? this.speed * DOWN_COS : -this.speed * DOWN_COS);
+		//this.vy = this.speed * DOWN_SIN;
     // 30, 40, 50にしてみる。
 		if(hitFlag > 0 && hitFlag < 4){
 			if(shotTypeId < 2){
@@ -293,6 +318,15 @@ class enemy{
 		}
 		return hitFlag;
 	}
+  formChange(newIndex){
+    // factorIndexが変化した場合の処理あれこれ
+    this.factorIndex = newIndex;
+    this.speed = speedFactor[this.factorIndex];
+    this.frameMax = 4 + this.factorIndex; // フレーム制御変更
+    this.frame = 0; // フレームリセット
+    this.vx = (this.vx > 0 ? this.speed * DOWN_COS : -this.speed * DOWN_COS);
+		this.vy = this.speed * DOWN_SIN;
+  }
 	getUniqueIndex(){ return this.uniqueIndex; }
 	static getBodyColor(index){
 		switch(index){
@@ -354,13 +388,6 @@ class effect{
         ellipse(this.x + this.angleArrayX[i] * r, this.y + this.angleArrayY[i] * r, this.diam / 4, this.diam / 4);
       }
     }
-		//fill(this.color);
-		//let d = this.diam * this.life / 60;
-		//ellipse(this.x, this.y, d, d);
-    //let r = this.diam * Math.sin(Math.PI * (0.5 - this.life / 60));
-    //for(let i = 0; i < 8; i++){
-    //  ellipse(this.x + this.angleArrayX[i] * r, this.y + this.angleArrayY[i] * r, this.diam / 4, this.diam / 4);
-    //}
 	}
 }
 
