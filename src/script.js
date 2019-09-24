@@ -198,8 +198,9 @@ class enemy{
 	constructor(num, x){
 		this.num = num;
 		this.uniqueIndex = enemy.calcFactorIndex(num); // スコア計算などに使う不変Index
-		this.factorIndex = this.uniqueIndex; // 文字表示などに使う可変Index
-		this.diam = diamArray[this.factorIndex];
+		this.factorIndex = this.uniqueIndex; // 文字表示などに使う可変Index（0~6）
+		//this.diam = diamArray[this.factorIndex];
+    this.diam = 40; // 直径は固定
 		this.color = enemy.getBodyColor(this.factorIndex);
 		this.x = x;
 		this.y = this.diam / 2 + 40; // ちょっと下方修正（残機表示用に）
@@ -210,9 +211,14 @@ class enemy{
 		this.alive = true;
 		this.arrived = false;
 		this.count = 0; // 攻撃を受けたときにダメージに応じて速度が発生する感じ。
+    this.frame = 0; // アニメーション制御用
+    this.frameMax = 4 + this.factorIndex; // 最終的にはfactorIndexにより変化させる（4,5,6,7,8,9,10)
+    this.leftImgArray = enemyLeftImgArray;
+    this.rightImgArray = enemyRightImgArray;
 	}
 	update(){
 		if(!this.alive){ return; }
+    this.frame++;
 		if(this.count > 0){
 			this.count--;
 			this.vy += 0.1; // 移動距離はnフレームで0.05 * n * nくらい。30, 40, 50ならおよそ45, 80, 125になる。
@@ -227,15 +233,22 @@ class enemy{
 		if(this.y > height - 40 - this.diam / 2){ this.arrived = true; } // 陣地に到達
 	}
 	render(){
-		fill(this.color);
-		ellipse(this.x, this.y, this.diam, this.diam);
+		//fill(this.color);
+		//ellipse(this.x, this.y, this.diam, this.diam);
+    if(this.vx > 0){
+      image(this.rightImgArray[(Math.floor(this.frame / this.frameMax)) % 8], this.x - 20, this.y - 25);
+    }else{
+      image(this.leftImgArray[(Math.floor(this.frame / this.frameMax)) % 8], this.x - 20, this.y - 25);
+    }
+
 		// ここに透明処理かぶせてブリンクを表現したいかな。分かりづらいので。
 		//fill(255);
 		//textSize(this.diam / sizeFactor[this.factorIndex]);
 		//text(this.num, this.x, this.y + this.diam / alignFactor[this.factorIndex]);
     fill(0);
     textSize(25);
-    text(this.num, this.x, this.y + this.diam / 2 + 20);
+    text(this.num, this.x, this.y + 40);
+    //text(this.num, this.x, this.y + this.diam / 2 + 20);
 	}
 	hit(shotTypeId){
 		// 当たった場合の処理。0:/2shot. 1:/3shot. 2:+1shot.
@@ -258,8 +271,11 @@ class enemy{
     // masterがこれを検知して、配列から外し、エフェクトを発生させる流れ。
 		if(this.num === 1){ this.alive = false; return hitFlag; }
 		this.factorIndex = enemy.calcFactorIndex(this.num);
-		this.diam = diamArray[this.factorIndex];
+		//this.diam = diamArray[this.factorIndex];
 		this.speed = speedFactor[this.factorIndex];
+    this.frameMax = 4 + this.factorIndex; // フレーム制御変更
+    this.frame = 0; // フレームリセット
+    // 最終的には使う画像も変更する・・
 		this.vx = (this.vx > 0 ? this.speed * DOWN_COS : -this.speed * DOWN_COS);
 		this.vy = this.speed * DOWN_SIN;
     // 30, 40, 50にしてみる。
@@ -386,7 +402,7 @@ class master{
 		// どの範囲の数がどれくらいの確率で出るかみたいなこと
 		if(this.stageNumber === 0){
       this.necessary = 5;
-      this.registGenerator({id:1, param:[1, 1, [7, 11, 3, 11, 7], [80, 160, 200, 240, 320]]});
+      this.registGenerator({id:1, param:[1, 1, [2, 20, 200, 2000, 20000], [80, 160, 200, 240, 320]]});
 		}else if(this.stageNumber === 1){
       this.necessary = 2;
       this.registGenerator({id:0, param:[2, 60, 3, 200]});
