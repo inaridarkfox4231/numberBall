@@ -7,7 +7,6 @@ const diamArray = [30, 40, 60, 65, 75, 80, 90];
 //const alignFactor = [3.0, 4.5, 6, 8, 8, 10, 15];
 const DOWN_COS = Math.cos(Math.PI / 24);
 const DOWN_SIN = Math.sin(Math.PI / 24);
-//const speedFactor = [2.4, 2.1, 1.8, 1.5, 1.2, 0.9, 0.6];
 const speedFactor = [3.5, 3.0, 2.5, 2.0, 1.5, 1.0, 0.6]
 const message = ["STAGE", "PLAY", "FAILED...", "GAME OVER...", "CLEAR!", "ALL CLEAR!"];
 
@@ -180,8 +179,7 @@ class shot{
 		this.x += this.vx;
 		this.y += this.vy;
 		if(this.y < 0 || this.y > height){
-			if(this.y < 0){ this.setHitFlag(5); } // 上方に消える場合のフラグ処理。上方なのでthis.y < 0. 間違えました。ごめんなさい。
-			//if(this.hitFlag === 5){ console.log("fail"); }
+			if(this.y < 0){ this.setHitFlag(5); } // 上方に消える場合のフラグ処理。上方なのでthis.y < 0. 間違えました。
 			this.inActivate();
 		} // 上か下に消える感じ。んー・・流れ弾には当たり判定がないようにする。
 	}
@@ -667,7 +665,7 @@ class master{
 				this.hitChain += 3; this.missChain = 0;
 				return 300;
 			case 3: //   +1shotは当てるだけで50点。
-				this.hitChain = 0; this.missChain = 0; this.calcScore(50);
+				this.hitChain = 0; this.missChain = 0;
 				return 50;
 			case 4: //   missChainの値×100点を引く。
 				this.hitChain = 0; this.missChain++;
