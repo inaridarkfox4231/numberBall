@@ -16,11 +16,19 @@ const shotScore = [100, 300, 50]; // /2, /3, +1を当てたときの基本スコ
 
 // load関連
 let assetsIcon = []; // 0と1にグラフィックを入れる感じで
+let enemyLeftImg;
+let enemyLeftImgArray = [];
+let enemyRightImg;
+let enemyRightImgArray = [];
+let enemyDownImg;
 const ass = "https://inaridarkfox4231.github.io/numberBallAssets/"; // 面倒なので。
 
 function preload(){
   // ここでloadImage("https://inaridarkfox4231.github.io/フォルダ名/ファイル名.png")ってやれば呼び出せるよ。
   assetsIcon.push(...[loadImage(ass + "player_0.png"), loadImage(ass + "player_1.png")]);
+  enemyLeftImg = loadImage(ass + "enemyArrayleft0.png");
+  enemyRightImg = loadImage(ass + "enemyArrayright0.png");
+  enemyDownImg = loadImage(ass + "enemyDown_0.png");
 }
 
 function setup(){
@@ -30,6 +38,14 @@ function setup(){
   masterModule.setGenerator();
 	noStroke();
 	keyFlag = 0;
+  for(let i = 0; i < 8; i++){
+    let grLeft = createGraphics(40, 40);
+    let grRight = createGraphics(40, 40);
+    grLeft.image(enemyLeftImg, 0, 0, 40, 40, i * 40, 0, 40, 40);
+    grRight.image(enemyRightImg, 0, 0, 40, 40, i * 40, 0, 40, 40);
+    enemyLeftImgArray.push(grLeft);
+    enemyRightImgArray.push(grRight);
+  }
 }
 // 1桁は40, 2桁は50, 3桁は60が適切かも。4桁は65にしたい。5桁は75にしたい。
 // で、小さくするとサイズも小さくなるとか。たとえば60で攻撃して桁が減ると50になるとか。
@@ -264,19 +280,19 @@ class enemy{
 	static getBodyColor(index){
 		switch(index){
 			case 0:
-				return color(255, 0, 0);
+				return color(255, 0, 0); // 赤
 			case 1:
-				return color(230, 177, 0);
+				return color(230, 177, 0); // オレンジ
 			case 2:
-				return color(34, 177, 76);
+				return color(34, 177, 76); // 緑
 			case 3:
-				return color(0, 162, 232);
+				return color(0, 162, 232); // 水色
 			case 4:
-				return color(163, 73, 164);
+				return color(163, 73, 164); // 紫
 			case 5:
 				return color(185, 122, 87); // 茶色
 		}
-		return color(127); // 灰色
+		return color(127); // 灰色(7桁)
 	}
 	static calcFactorIndex(num){
 	  if(num < 10){ return 0; }
