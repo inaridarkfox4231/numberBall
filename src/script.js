@@ -230,7 +230,8 @@ class enemy{
     this.rightImgArray = enemyRightImgArraySet[this.uniqueIndex];
     this.downImg = enemyDownImgArray[this.uniqueIndex]; // ダウンイメージを色別にする
     // ダウンイメージは最後まで変わらないので注意する
-    this.score = baseScore[this.uniqueIndex]; // スコア持たせたいよね。これを元に計算する感じ。
+    //this.score = baseScore[this.uniqueIndex]; // スコア持たせたいよね。これを元に計算する感じ。
+    this.score = Math.floor(Math.sqrt(num)) * 50;
     // 最終的にはbaseScoreを廃止して持ち数から計算する～
 	}
 	update(){
@@ -252,19 +253,21 @@ class enemy{
 	render(){
 		//fill(this.color);
 		//ellipse(this.x, this.y, this.diam, this.diam);
+    fill(0);
+    textSize(25);
+    text(this.num, this.x, this.y + 40);
+    if(this.count > 0){
+      if(Math.floor(this.count / 4) % 2 === 0){ return; } // ブリンク用
+     }
     if(this.vx > 0){
       image(this.rightImgArray[(Math.floor(this.frame / this.frameMax)) % 8], this.x - 20, this.y - 25);
     }else{
       image(this.leftImgArray[(Math.floor(this.frame / this.frameMax)) % 8], this.x - 20, this.y - 25);
     }
-
 		// ここに透明処理かぶせてブリンクを表現したいかな。分かりづらいので。
 		//fill(255);
 		//textSize(this.diam / sizeFactor[this.factorIndex]);
 		//text(this.num, this.x, this.y + this.diam / alignFactor[this.factorIndex]);
-    fill(0);
-    textSize(25);
-    text(this.num, this.x, this.y + 40);
     //text(this.num, this.x, this.y + this.diam / 2 + 20);
 	}
 	hit(shotTypeId){
@@ -427,7 +430,7 @@ class master{
 		// どの範囲の数がどれくらいの確率で出るかみたいなこと
 		if(this.stageNumber === 0){
       this.necessary = 2;
-      this.registGenerator({id:1, param:[1, 1, [3, 7], [240, 320]]});
+      this.registGenerator({id:1, param:[1, 1, [300, 70], [240, 320]]});
 		}else if(this.stageNumber === 1){
       this.necessary = 2;
       this.registGenerator({id:0, param:[2, 60, 3, 200]});
