@@ -426,8 +426,8 @@ class master{
 	setGenerator(){
 		// どの範囲の数がどれくらいの確率で出るかみたいなこと
 		if(this.stageNumber === 0){
-      this.necessary = 5;
-      this.registGenerator({id:1, param:[1, 1, [20, 200, 2000, 200, 20], [80, 160, 200, 240, 320]]});
+      this.necessary = 2;
+      this.registGenerator({id:1, param:[1, 1, [3, 7], [240, 320]]});
 		}else if(this.stageNumber === 1){
       this.necessary = 2;
       this.registGenerator({id:0, param:[2, 60, 3, 200]});
@@ -437,53 +437,70 @@ class master{
 		// shotと敵・・当たったら敵がやられるか、敵が数を減らすか、数を増やすか、その度に色々再計算。
 		// shotがtype情報をくれるので衝突したらそれを元に数を変更、1になった場合はalive=falseでcheckの際に外される。
     // 詳細はlog.txt参照。
-    /*
     for(let i = 0; i < this.shotArray.length; i++){
       let s = this.shotArray[i];
-      if(s.vy > 0 || (!s.active)){ continue; } // 消滅済み、又は下向き移動中→pass
-      let targetScore = 0; // ショットが当たった場合の、当てた敵のスコアを記録する変数
-      let killed = false;  // 敵を倒したかどうかの判定。倒した場合のスコア計算に使う。
+      if(s.vy > 0){ continue; } // 下向き移動中はパス。
+      let target = undefined; // ショットが当たった場合はここに敵を格納。
       for(let k = 0; k < this.enemyArray.length; k++){
+        if(!s.active){ continue; } // sがnon-activeならここの処理はしない。
         let e = this.enemyArray[k];
-        if(!e.alive){ continue; } // 倒れてる場合
+        if(!e.alive){ continue; } // 敵が倒れてる時。
         let distPow2 = Math.pow(e.x - s.x, 2) + Math.pow(e.y - s.y, 2);
         let radiusSumPow2 = Math.pow((e.diam + s.diam) / 2, 2);
-        if(radiusPow2 > distPow2){ // 衝突した場合
+        if(radiusSumPow2 > distPow2){ // 衝突した場合
           // 1:/2がhit 2:/3がhit 3:+1がhit 4:/2又は/3が弾かれた 5:ブリンクで当たらなかった
           let hitFlag = e.hit(s.getShotTypeId());
           s.hit(hitFlag); // 4の場合は下向きに移動を開始、それ以外は消滅。
           if(!e.alive){
             this.effectArray.push(new downEffect(e.x, e.y, 60, e.uniqueIndex));
-            killed = true; // 倒した。
           }
-          targetScore = e.score; // eの生死に関わらず衝突したらスコアを記録する。
+          target = e; // 衝突したらeを記録
           break; // 1回でも衝突したらforループを抜ける
         }
       }
-      // ちなみに画面外に消えた場合、updateでフラグが5になっているので注意する。Chainが途切れる。
-      // 敵を倒した場合のスコア計算よりChainの計算が先。Chain→shot→enemyって感じ。
-    }*/
-
-
-		for(let k = 0; k < this.enemyArray.length; k++){
-			// eがいずれかのsと当たるか調べる。
-			let e = this.enemyArray[k];
-			if(!e.alive){ continue; } // 既に倒れている場合はスルー。
-			for(let i = 0; i < this.shotArray.length; i++){
-				let s = this.shotArray[i];
-				if(s.vy > 0 || (!s.active)){ continue; } // 既に衝突して消滅したか、下向きに移動中かっていう。
-				let distPow2 = Math.pow(e.x - s.x, 2) + Math.pow(e.y - s.y, 2);
-				let radiusSumPow2 = Math.pow((e.diam + s.diam) / 2, 2);
-				if(radiusSumPow2 > distPow2){
-					// 衝突した場合
-					let hitFlag = e.hit(s.getShotTypeId());
-					s.hit(hitFlag);
-					// エフェクト発生は倒した場合だけ！indexだけ渡す。
-          if(!e.alive){ this.effectArray.push(new downEffect(e.x, e.y, 60, e.uniqueIndex)); }
-				}
-			}
+      // non-activeでもChainの計算の為にここまで処理が来ることもあるので注意。（画面外とか）
+      // 画面外に消えた場合、updateでフラグが5になっているのでChainが途切れる。
+      // 敵を倒した場合のスコア計算よりChain優先。Chain→shot→enemyって感じ。
+      let flag = s.getHitFlag();
+      this.calcChain(flag);
+      // 以下の処理はいずれcalcScore(s, target, flag)でまとめる。
+      this.calcScore(s, target, flag);
+    }
+	}
+  calcChain(flag){
+    switch(flag){
+			case 1: //   /2shotは当てるだけで100点。
+				this.hitChain += 1; this.missChain = 0;
+        break;
+			case 2: //   /3shotは当てるだけで300点。
+				this.hitChain += 3; this.missChain = 0;
+				break;
+			case 3: //   +1shotは当てるだけで50点。
+				this.hitChain = 0; this.missChain = 0;
+				break;
+			case 4: //   missChainの値×100点を引く。
+				this.hitChain = 0; this.missChain++;
+				break;
+			case 5:
+				this.hitChain = 0;
+        console.log("はずれ");
+        break;
 		}
 	}
+  calcScore(shot, enemy, flag){
+    // スコア計算部分
+    if(flag < 1 || flag > 4){ return; }
+    if(flag === 1){ this.changeScore(100, shot.x, shot.y); }
+    else if(flag === 2){ this.changeScore(300, shot.x, shot.y); }
+    else if(flag === 3){ this.changeScore(50, shot.x, shot.y); }
+    else if(flag === 4){
+      this.changeScore(-this.missChain * Math.floor(enemy.score * 0.02) * 10, shot.x, shot.y);
+    }
+    if(!enemy.alive){
+      let higherFactor = (enemy.y < (height / 2) ? 2 : 1); // 画面上部で倒すとスコア2倍
+      this.changeScore(higherFactor * enemy.score * this.hitChain, enemy.x, enemy.y - (enemy.diam / 2));
+    }
+  }
 	toNextStage(){
     // そのうちいじる必要が生じるかも？
 		this.stageNumber++;
@@ -593,14 +610,6 @@ class master{
 		for(let i = 0; i < this.shotArray.length; i++){
 			if(i === this.shotArray.length){ break; }
 			let s = this.shotArray[i];
-			// shotArray[i]のフラグを取得してchainの計算をするのはここで
-			let flag = s.getHitFlag();
-			if(flag !== 0){ // フラグが0の場合は何もしない
-        let diff = this.calcChain(flag); // chain計算の際のスコア変動を戻り値として受け取る。
-        // 弾かれた場合のスコア減少は衝突判定で行う。
-        if(diff !== 0){ this.calcScore(diff, s.x, s.y); } // diffが正の場合だけ。
-      }
-			if(flag === 4){ s.setHitFlag(0); } // 弾かれた場合はフラグを0にする
 			if(s.active){ continue; }
 			this.shotArray.splice(i, 1); // not activeなら排除
 		}
@@ -609,12 +618,6 @@ class master{
 			if(i === this.enemyArray.length){ break; }
       let e = this.enemyArray[i];
 			if(e.alive){ continue; }
-			// とりあえずこのタイミングで倒した敵のスコアが・・それだけ、ね。
-      // 敵を倒すのはここ。
-			let index = e.getUniqueIndex();
-      let higherFactor = (e.y < height / 2 ? 2 : 1); // 高い場所で倒すとスコア2倍
-      // 高さのfactorとthis.hitChainを基礎点に掛けたものがスコアになる
-			this.calcScore(higherFactor * e.score * this.hitChain, e.x, e.y - e.diam / 2);
 			this.enemyArray.splice(i, 1);
       this.necessary--;
       // エフェクトが残ってしまうので、クリア判定は最後で。
@@ -640,7 +643,7 @@ class master{
         if(this.life > 0){ this.state = 2; }else{ this.state = 3; }
         // 先にstateを変えて数字が出現しないようにする
         let diff = Math.floor(this.score * 0.01) * 10;
-				this.calcScore(-diff); // やられるとスコア0.9倍.
+				this.changeScore(-diff); // やられるとスコア0.9倍.
         return;
       } // 陣地に到達されたら1ミス。
 		}
@@ -654,33 +657,12 @@ class master{
         this.state = 5;
         // 先にstateを変えて数字が出現しないようにする。
         let diff = Math.floor((this.score * (Math.pow(1.1, this.life) - 1)) / 10) * 10;
-				this.calcScore(diff); // ライフボーナス(残機数の回数だけ1.1倍)
+				this.changeScore(diff); // ライフボーナス(残機数の回数だけ1.1倍)
       }
     }
     this.generateEnemy();
 	}
-	calcChain(flag){
-    // スコア変動を戻り値に取る。
-    switch(flag){
-			case 1: //   /2shotは当てるだけで100点。
-				this.hitChain += 1; this.missChain = 0;
-        return 100;
-			case 2: //   /3shotは当てるだけで300点。
-				this.hitChain += 3; this.missChain = 0;
-				return 300;
-			case 3: //   +1shotは当てるだけで50点。
-				this.hitChain = 0; this.missChain = 0;
-				return 50;
-			case 4: //   missChainの値×100点を引く。
-				this.hitChain = 0; this.missChain++;
-				return -100 * this.missChain;
-			case 5:
-				this.hitChain = 0;
-        break;
-		}
-    return 0;
-	}
-	calcScore(diff, x, y){
+	changeScore(diff, x, y){
 		// diffの分だけスコアを増減する（減らすときはここに負の数が入る）
 		// 0未満や10000000以上にはならないようにする
 		this.score = constrain(this.score + diff, 0, 10000000);
