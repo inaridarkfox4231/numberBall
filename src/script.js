@@ -54,15 +54,7 @@ function setup(){
     }
     enemyLeftImgArraySet.push(enemyLeftImgArray);
     enemyRightImgArraySet.push(enemyRightImgArray);
-  }/*
-  for(let i = 0; i < 8; i++){
-    let grLeft = createGraphics(40, 40);
-    let grRight = createGraphics(40, 40);
-    grLeft.image(enemyLeftImg, 0, 0, 40, 40, i * 40, 0, 40, 40);
-    grRight.image(enemyRightImg, 0, 0, 40, 40, i * 40, 0, 40, 40);
-    enemyLeftImgArray.push(grLeft);
-    enemyRightImgArray.push(grRight);
-  }*/
+  }
   for(let k = 0; k < 7; k++){
     let gr = createGraphics(40, 40);
     gr.image(enemyDownImg, 0, 0, 40, 40, k * 40, 0, 40, 40);
@@ -238,6 +230,8 @@ class enemy{
     this.rightImgArray = enemyRightImgArraySet[this.uniqueIndex];
     this.downImg = enemyDownImgArray[this.uniqueIndex]; // ダウンイメージを色別にする
     // ダウンイメージは最後まで変わらないので注意する
+    this.score = baseScore[this.uniqueIndex]; // スコア持たせたいよね。これを元に計算する感じ。
+    // 最終的にはbaseScoreを廃止して持ち数から計算する～
 	}
 	update(){
 		if(!this.alive){ return; }
@@ -433,7 +427,7 @@ class master{
 		// どの範囲の数がどれくらいの確率で出るかみたいなこと
 		if(this.stageNumber === 0){
       this.necessary = 5;
-      this.registGenerator({id:1, param:[1, 1, [2, 2, 2, 2, 2], [80, 160, 200, 240, 320]]});
+      this.registGenerator({id:1, param:[1, 1, [20, 200, 2000, 200, 20], [80, 160, 200, 240, 320]]});
 		}else if(this.stageNumber === 1){
       this.necessary = 2;
       this.registGenerator({id:0, param:[2, 60, 3, 200]});
@@ -576,7 +570,8 @@ class master{
 			let flag = s.getHitFlag();
 			if(flag !== 0){ // フラグが0の場合は何もしない
         let diff = this.calcChain(flag); // chain計算の際のスコア変動を戻り値として受け取る。
-        if(diff !== 0){ this.calcScore(diff, s.x, s.y); }
+        // 弾かれた場合のスコア減少は衝突判定で行う。
+        if(diff !== 0){ this.calcScore(diff, s.x, s.y); } // diffが正の場合だけ。
       }
 			if(flag === 4){ s.setHitFlag(0); } // 弾かれた場合はフラグを0にする
 			if(s.active){ continue; }
@@ -592,7 +587,7 @@ class master{
 			let index = e.getUniqueIndex();
       let higherFactor = (e.y < height / 2 ? 2 : 1); // 高い場所で倒すとスコア2倍
       // 高さのfactorとthis.hitChainを基礎点に掛けたものがスコアになる
-			this.calcScore(higherFactor * baseScore[index] * this.hitChain, e.x, e.y - e.diam / 2);
+			this.calcScore(higherFactor * e.score * this.hitChain, e.x, e.y - e.diam / 2);
 			this.enemyArray.splice(i, 1);
       this.necessary--;
       // エフェクトが残ってしまうので、クリア判定は最後で。
