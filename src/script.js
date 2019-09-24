@@ -171,7 +171,7 @@ class shot{
 		this.x += this.vx;
 		this.y += this.vy;
 		if(this.y < 0 || this.y > height){
-			if(this.y < 0){ this.setHitFlag(5); } // 上方に消える場合のフラグ処理。上方なのでthis.y < 0. 間違えました。
+			if(this.y < 0){ this.setHitFlag(5); } // 上方に消える場合のフラグ処理。5を指定しておく。
 			this.inActivate();
 		} // 上か下に消える感じ。んー・・流れ弾には当たり判定がないようにする。
 	}
@@ -436,7 +436,35 @@ class master{
 	collisionCheck(){
 		// shotと敵・・当たったら敵がやられるか、敵が数を減らすか、数を増やすか、その度に色々再計算。
 		// shotがtype情報をくれるので衝突したらそれを元に数を変更、1になった場合はalive=falseでcheckの際に外される。
-		// effect出したいけど今はいいです。あとで・・。
+    // 詳細はlog.txt参照。
+    /*
+    for(let i = 0; i < this.shotArray.length; i++){
+      let s = this.shotArray[i];
+      if(s.vy > 0 || (!s.active)){ continue; } // 消滅済み、又は下向き移動中→pass
+      let targetScore = 0; // ショットが当たった場合の、当てた敵のスコアを記録する変数
+      let killed = false;  // 敵を倒したかどうかの判定。倒した場合のスコア計算に使う。
+      for(let k = 0; k < this.enemyArray.length; k++){
+        let e = this.enemyArray[k];
+        if(!e.alive){ continue; } // 倒れてる場合
+        let distPow2 = Math.pow(e.x - s.x, 2) + Math.pow(e.y - s.y, 2);
+        let radiusSumPow2 = Math.pow((e.diam + s.diam) / 2, 2);
+        if(radiusPow2 > distPow2){ // 衝突した場合
+          // 1:/2がhit 2:/3がhit 3:+1がhit 4:/2又は/3が弾かれた 5:ブリンクで当たらなかった
+          let hitFlag = e.hit(s.getShotTypeId());
+          s.hit(hitFlag); // 4の場合は下向きに移動を開始、それ以外は消滅。
+          if(!e.alive){
+            this.effectArray.push(new downEffect(e.x, e.y, 60, e.uniqueIndex));
+            killed = true; // 倒した。
+          }
+          targetScore = e.score; // eの生死に関わらず衝突したらスコアを記録する。
+          break; // 1回でも衝突したらforループを抜ける
+        }
+      }
+      // ちなみに画面外に消えた場合、updateでフラグが5になっているので注意する。Chainが途切れる。
+      // 敵を倒した場合のスコア計算よりChainの計算が先。Chain→shot→enemyって感じ。
+    }*/
+
+
 		for(let k = 0; k < this.enemyArray.length; k++){
 			// eがいずれかのsと当たるか調べる。
 			let e = this.enemyArray[k];
@@ -452,7 +480,6 @@ class master{
 					s.hit(hitFlag);
 					// エフェクト発生は倒した場合だけ！indexだけ渡す。
           if(!e.alive){ this.effectArray.push(new downEffect(e.x, e.y, 60, e.uniqueIndex)); }
-					//if(!e.alive){ this.createDownEffect(e.x, e.y, e.uniqueIndex); }
 				}
 			}
 		}
