@@ -7,7 +7,8 @@ const diamArray = [30, 40, 60, 65, 75, 80, 90];
 //const alignFactor = [3.0, 4.5, 6, 8, 8, 10, 15];
 const DOWN_COS = Math.cos(Math.PI / 24);
 const DOWN_SIN = Math.sin(Math.PI / 24);
-const speedFactor = [2.4, 2.1, 1.8, 1.5, 1.2, 0.9, 0.6];
+//const speedFactor = [2.4, 2.1, 1.8, 1.5, 1.2, 0.9, 0.6];
+const speedFactor = [3.5, 3.0, 2.5, 2.0, 1.5, 1.0, 0.6]
 const message = ["STAGE", "PLAY", "FAILED...", "GAME OVER...", "CLEAR!", "ALL CLEAR!"];
 
 // score関連
