@@ -1,3 +1,5 @@
+"use strict";
+
 let masterModule;
 let keyFlag; // キー情報
 
@@ -486,7 +488,6 @@ class master{
 				break;
 			case 5:
 				this.hitChain = 0;
-        console.log("はずれ");
         break;
 		}
 	}
