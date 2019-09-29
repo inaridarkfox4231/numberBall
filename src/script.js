@@ -445,7 +445,7 @@ class master{
     for(let i = 0; i < this.shotArray.length; i++){
       let s = this.shotArray[i];
       if(s.vy > 0){ continue; } // 下向き移動中はパス。
-      let target = undefined; // ショットが当たった場合はここに敵を格納。
+      let target; // ショットが当たった場合はここに敵を格納。
       for(let k = 0; k < this.enemyArray.length; k++){
         if(!s.active){ continue; } // sがnon-activeならここの処理はしない。
         let e = this.enemyArray[k];
@@ -468,8 +468,8 @@ class master{
       // 敵を倒した場合のスコア計算よりChain優先。Chain→shot→enemyって感じ。
       let flag = s.getHitFlag();
       this.calcChain(flag);
-      // 以下の処理はいずれcalcScore(s, target, flag)でまとめる。
-      this.calcScore(s, target, flag);
+      // 以下の処理はいずれcalcScore(s, target, flag)でまとめる。targetが未設定の時は実行しない。
+      if(target !== undefined){ this.calcScore(s, target, flag); }
     }
 	}
   calcChain(flag){
