@@ -9,7 +9,7 @@ const diamArray = [30, 40, 60, 65, 75, 80, 90];
 //const alignFactor = [3.0, 4.5, 6, 8, 8, 10, 15];
 const DOWN_COS = Math.cos(Math.PI / 24);
 const DOWN_SIN = Math.sin(Math.PI / 24);
-const speedFactor = [3.5, 3.0, 2.5, 2.0, 1.5, 1.0, 0.6]
+const speedFactor = [3.0, 2.6, 2.2, 1.8, 1.4, 1.0, 0.6]
 const message = ["STAGE", "PLAY", "FAILED...", "GAME OVER...", "CLEAR!", "ALL CLEAR!"];
 
 // score関連
@@ -474,19 +474,19 @@ class master{
 	}
   calcChain(flag){
     switch(flag){
-			case 1: //   /2shotは当てるだけで100点。
+			case 1: //   /2shotは当てるだけで100点。hitChain+1. missChainリセット。
 				this.hitChain += 1; this.missChain = 0;
         break;
-			case 2: //   /3shotは当てるだけで300点。
+			case 2: //   /3shotは当てるだけで300点。hitChain+3. missChainリセット。
 				this.hitChain += 3; this.missChain = 0;
 				break;
-			case 3: //   +1shotは当てるだけで50点。
-				this.hitChain = 0; this.missChain = 0;
+			case 3: //   +1shotは当てるだけで50点。hitChainは変化なし。missChainリセット。
+				this.missChain = 0;
 				break;
-			case 4: //   missChainの値×100点を引く。
+			case 4: //   missChainの値×100点を引く。hitChainリセット。missChain+1.
 				this.hitChain = 0; this.missChain++;
 				break;
-			case 5:
+			case 5: //   hitChainリセット。
 				this.hitChain = 0;
         break;
 		}
